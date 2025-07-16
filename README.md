@@ -9,10 +9,12 @@ Easy Unpacker is a lightweight command-line tool written in Go that extracts var
   - TAR.GZ (`.tar.gz`, `.tgz`)
   - RAR (`.rar`) 
   - 7-Zip (`.7z`)
+- Password-protected archive support
 - Preserves directory structure during extraction
 - Maintains original file permissions
 - Clear error reporting
 - Automatic directory creation
+- Fallback to system utilities when needed
 
 > **Note:** The project is actively being developed with plans to support additional archive formats in the future.
 
@@ -21,6 +23,7 @@ Easy Unpacker is a lightweight command-line tool written in Go that extracts var
 ### Prerequisites
 
 - Go 1.16 or later
+- System `unzip` utility (optional, for advanced ZIP extraction)
 
 ### Option 1: Using Go Modules (Recommended)
 
@@ -64,18 +67,40 @@ The Easy Unpacker can be used with positional arguments:
 
 - Path to the archive file (required)
 - Destination directory for extracted files (required)
+- `-p <password>` - Password for encrypted archives (optional)
+- `-h` - Show help information
 
 If the destination directory doesn't exist, it will be automatically created.
 
-### Examples
+### Password-Protected Archives
 
-Extract a ZIP archive:
+For encrypted archives, use the `-p` flag followed by the password:
+
 ```bash
-./easy-unpacker documents.zip ./extracted_docs
+./easy-unpacker -p mypassword ./encrypted.zip ./extracted
 ```
 
-Extract a TAR.GZ archive:
+Note: Password protection is currently supported for ZIP archives only.
+
+### Fallback Mechanism
+
+Easy Unpacker uses Go libraries for extraction by default, but will automatically fall back to system utilities in the following cases:
+
+- When dealing with complex encrypted ZIP formats
+- When the built-in libraries encounter extraction errors
+- For archives with non-standard compression methods
+
+This fallback mechanism requires the corresponding system utilities (`unzip` for ZIP files) to be installed on your system.
+
+## Examples
+
+Extract a standard ZIP archive:
 ```bash
-./easy-unpacker backup.tar.gz ./restored_backup
+./easy-unpacker archive.zip ./extracted_files
+```
+
+Extract a password-protected ZIP archive:
+```bash
+./easy-unpacker -p secretpassword secure_archive.zip ./extracted_files
 ```
 
