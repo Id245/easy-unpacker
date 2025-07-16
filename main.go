@@ -2,15 +2,16 @@ package main
 
 import (
 	"archive/tar"
-	"archive/zip"
 	"compress/gzip"
 	"flag"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/alexmullins/zip"
 	"github.com/bodgit/sevenzip"
 	"github.com/nwaples/rardecode"
 )
@@ -19,19 +20,19 @@ func main() {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Easy Unpacker - Extract various archive formats\n\n")
 		fmt.Fprintf(os.Stderr, "Usage:\n")
-		fmt.Fprintf(os.Stderr, "  %s -p <path-to-archive> -d <destination-directory>\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s <path-to-archive> <destination-directory>\n\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "Parameters:\n")
-		flag.PrintDefaults()
+		fmt.Fprintf(os.Stderr, "  <path-to-archive>         Path to the archive file\n")
+		fmt.Fprintf(os.Stderr, "  <destination-directory>   Directory for extraction\n")
+		fmt.Fprintf(os.Stderr, "  -h                        Show help\n")
 		fmt.Fprintf(os.Stderr, "\nSupported formats: .zip, .tar.gz, .tgz, .rar, .7z\n")
 		fmt.Fprintf(os.Stderr, "\nExamples:\n")
-		fmt.Fprintf(os.Stderr, "  %s -p archive.zip -d ./extracted\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "  %s archive.zip ./extracted\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s backup.tar.gz ./backup\n", os.Args[0])
 	}
 
-	pathFlag := flag.String("p", "", "Path to the archive file (required unless provided as first argument)")
-	destFlag := flag.String("d", "", "Destination directory for extraction (required unless provided as second argument)")
 	help := flag.Bool("h", false, "Show help")
+	pass := flag.String("p", "", "Set password if required")
 	flag.Parse()
 
 	if *help {
@@ -39,30 +40,16 @@ func main() {
 		return
 	}
 
-	var path, dest string
-
 	args := flag.Args()
 
-	if *pathFlag != "" || *destFlag != "" {
-
-		path = *pathFlag
-		dest = *destFlag
-
-		if path == "" || dest == "" {
-			fmt.Println("Error: Both -p and -d parameters are required when using flags")
-			flag.Usage()
-			return
-		}
-	} else if len(args) == 2 {
-		path = args[0]
-		dest = args[1]
-	} else {
-		fmt.Println("Error: Provide either flags (-p and -d) or two positional arguments")
+	if len(args) != 2 {
+		fmt.Println("Error: Exactly two arguments required: archive path and destination directory")
 		flag.Usage()
 		return
 	}
 
-	fmt.Println("Path:", path)
+	path := args[0]
+	dest := args[1]
 
 	if !checkExists(path) {
 		fmt.Println("No such file")
@@ -78,7 +65,7 @@ func main() {
 			return
 		}
 	case ".zip":
-		err := unzip(path, dest)
+		err := unzip(path, dest, *pass)
 		if err != nil {
 			fmt.Println("Error during unzip:", err)
 			return
@@ -116,39 +103,82 @@ func checkExtension(path string) string {
 	return ext
 }
 
-func unzip(path string, dest string) error {
+func unzip(path string, dest string, password string) error {
 	archive, err := zip.OpenReader(path)
 	if err != nil {
+		fmt.Println("Error during unzip:", err)
 		return err
 	}
 	defer archive.Close()
 
 	for _, file := range archive.Reader.File {
+		if file.IsEncrypted() {
+			if password != "" {
+				file.SetPassword(password)
+			} else {
+				return fmt.Errorf("archive is encrypted, provide a password via -p <password>")
+			}
+		}
+
 		if file.FileInfo().IsDir() {
 			filePath := filepath.Join(dest, file.Name)
 			if err := os.MkdirAll(filePath, os.ModePerm); err != nil {
-				return err
+				fmt.Println("Error creating directory:", err)
+				return UnzipSystem(path, dest, password)
 			}
 			continue
 		}
 
 		reader, err := file.Open()
 		if err != nil {
-			return err
+			fmt.Println("Error opening file:", err)
+			if strings.Contains(err.Error(), "decrypt") {
+				fmt.Println("Decryption error: wrong password or unsupported encryption method")
+			}
+			return UnzipSystem(path, dest, password)
 		}
 
 		filePath := filepath.Join(dest, file.Name)
 		dirPath := filepath.Dir(filePath)
 		if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {
 			reader.Close()
-			return err
+			fmt.Println("Error creating directory:", err)
+			return UnzipSystem(path, dest, password)
 		}
 
 		err = processFile(reader, filePath, file.Mode())
 		reader.Close()
 		if err != nil {
-			return err
+			fmt.Println("Error processing file:", err)
+			return UnzipSystem(path, dest, password)
 		}
+	}
+	return nil
+}
+
+func UnzipSystem(path string, dest string, password string) error {
+	_, err := exec.LookPath("unzip")
+	if err != nil {
+		return fmt.Errorf("system unzip utility not found")
+	}
+
+	fmt.Println("Easy-unpacker failed to decrypt. Trying system unzip...")
+
+	var args []string
+
+	//TODO: implement user notification if file with same name as unpacking already exists
+
+	if password != "" {
+		args = []string{"-P", password, path, "-d", dest}
+	} else {
+		args = []string{"-q", "-n", path, "-d", dest}
+	}
+
+	cmd := exec.Command("unzip", args...)
+	output, err := cmd.CombinedOutput()
+
+	if err != nil {
+		return fmt.Errorf("system unzip failed: %v\n%s", err, string(output))
 	}
 	return nil
 }

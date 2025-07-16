@@ -54,15 +54,7 @@ go build
 
 ## Usage
 
-Easy Unpacker can be used in two ways:
-
-### 1. With Named Parameters (Flags)
-
-```bash
-./easy-unpacker -p <path-to-archive> -d <destination-directory>
-```
-
-### 2. With Positional Arguments (Simpler)
+The Easy Unpacker can be used with positional arguments:
 
 ```bash
 ./easy-unpacker <path-to-archive> <destination-directory>
@@ -77,9 +69,9 @@ If the destination directory doesn't exist, it will be automatically created.
 
 ### Examples
 
-Extract a ZIP archive (using flags):
+Extract a ZIP archive:
 ```bash
-./easy-unpacker -p documents.zip -d ./extracted_docs
+./easy-unpacker documents.zip ./extracted_docs
 ```
 
 Extract a TAR.GZ archive:
