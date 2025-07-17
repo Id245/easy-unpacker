@@ -80,7 +80,7 @@ For encrypted archives, use the `-p` flag followed by the password:
 ./easy-unpacker -p mypassword ./encrypted.zip ./extracted
 ```
 
-Note: Password protection is currently supported for ZIP archives only.
+Note: Password protection is currently supported for ZIP and 7z archives only.
 
 ### Fallback Mechanism
 
