@@ -29,7 +29,7 @@ Easy Unpacker is a lightweight command-line tool written in Go that extracts var
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/easy-unpacker.git
+git clone https://github.com/Id245/easy-unpacker.git
 cd easy-unpacker
 
 # Initialize Go modules
@@ -44,7 +44,7 @@ go build
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/easy-unpacker.git
+git clone https://github.com/Id245/easy-unpacker.git
 cd easy-unpacker
 
 # Install dependencies explicitly
